@@ -1,15 +1,18 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+# --- add project root to sys.path (so 'src' is importable) ---
+import os, sys
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # parent folder of /app
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+# ------------------------------------------------------------
+
 
 from src.data_preprocessing import read_superstore_csv
 from src.feature_engineering import add_basic_features
 # --- add project root to sys.path ---
-import sys, os
-ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # parent of /app
-if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)
-# ----------------------------------
+
 
 st.set_page_config(page_title="Superstore Dashboard", page_icon="🏪", layout="wide")
 

@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
-from src.model_utils import load_model
 # --- add project root to sys.path ---
 import os, sys
 ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # => folder project root
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 # ------------------------------------
+from src.model_utils import load_model
+
 
 
 st.set_page_config(page_title="Profit Prediction", page_icon="🤖", layout="wide")
