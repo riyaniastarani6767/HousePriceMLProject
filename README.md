@@ -14,40 +14,6 @@ Proyek ini bertujuan untuk:
 4. Memungkinkan prediksi batch CSV sekaligus untuk banyak data.
 5. Aplikasi ini dapat digunakan baik untuk analisis interaktif maupun sebagai alat bantu pengambilan keputusan bisnis.
 
-Struktur Folder
-
-Project Sales ML/
-│
-├── app/                        # Aplikasi utama Streamlit
-│   ├── app.py                  # Halaman utama dashboard
-│   └── pages/                  # Halaman tambahan
-│       ├── EDA_Analysis.py     # Analisis data (EDA)
-│       └── Profit_Prediction.py# Prediksi profit
-│
-├── src/                        # Modul backend (fungsi dan model)
-│   ├── __init__.py
-│   ├── data_preprocessing.py
-│   ├── feature_engineering.py
-│   ├── model_training.py
-│   ├── model_utils.py
-│   └── visualization.py
-│
-├── data/
-│   ├── raw/                    # Dataset asli (mis. USSuperstoreData.csv)
-│   ├── processed/              # (opsional) hasil preprocessing
-│
-├── models/
-│   └── model_profit_clf.joblib # Model ML hasil training
-│
-├── notebooks/
-│   ├── train_superstore.ipynb  # Notebook analisis & training
-│   └── train_superstore.py     # Script training model
-│
-├── requirements.txt            # Dependensi Python
-├── README.md                   # Dokumentasi proyek (file ini)
-└── .venv/                      # Virtual environment
-
-
 Instalasi dan Menjalankan Proyek
 1️⃣ Clone atau download repository ini
 git clone <URL_REPO_KAMU>
