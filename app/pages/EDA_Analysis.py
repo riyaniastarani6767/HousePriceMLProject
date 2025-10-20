@@ -1,67 +1,142 @@
+
 import streamlit as st
 import pandas as pd
-# --- add project root to sys.path ---
+
+# Pastikan paket 'src' bisa diimpor saat Streamlit run dari folder /app
 import os, sys
-ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # => folder project root
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # parent of /app
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
-# ------------------------------------
 
 from src.visualization import (
-    kpi_summary, bar_sales_profit_by_category, top_subcategory_by_sales,
-    monthly_trend, scatter_sales_profit
+    kpi_summary, bar_sales_profit_by_category,
+    top_subcategory_by_sales, monthly_trend, scatter_sales_profit
 )
 
-st.set_page_config(page_title="EDA Analysis", page_icon="📊", layout="wide")
-st.title("📊 EDA – Business Overview")
+st.set_page_config(page_title="EDA Analysis", layout="wide")
+
+# --------------------------- Komponen UI --------------------------------------
+def kpi_card(title: str, value: str, bg: str = "#F1F1F1", fg: str = "#1F2937"):
+    html = f"""
+    <div style="
+        background:{bg};
+        color:{fg};
+        padding:16px 18px;
+        border-radius:12px;
+        border:1px solid rgba(0,0,0,0.06);
+        font-family:Inter,system-ui,Arial,sans-serif;
+        ">
+        <div style="font-size:12px; letter-spacing:.3px; opacity:.85; margin-bottom:6px;">
+            {title}
+        </div>
+        <div style="font-size:28px; font-weight:700; line-height:1;">
+            {value}
+        </div>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+st.title("Analisis Bisnis (EDA)")
 
 df = st.session_state.get("data_df", pd.DataFrame())
 if df.empty:
-    st.warning("Tidak ada data. Kembali ke Home untuk upload/gunakan default.")
+    st.warning("Tidak ada data. Kembali ke Beranda untuk upload atau gunakan data default.")
     st.stop()
 
-# Sidebar filters
+# Terapkan filter global dari Beranda
+gf = st.session_state.get("global_filters", {})
+fdf = df.copy()
+if "Order Date" in fdf.columns and gf.get("date_range"):
+    start, end = pd.to_datetime(gf["date_range"][0]), pd.to_datetime(gf["date_range"][1])
+    fdf = fdf[fdf["Order Date"].between(start, end)]
+if "Region" in fdf.columns and gf.get("regions"):
+    fdf = fdf[fdf["Region"].isin(gf["regions"])]
+
+# Filter khusus halaman (cascade Category -> Sub-Category)
 with st.sidebar:
-    st.header("🔎 Filters")
-    region = st.multiselect("Region", sorted(df["Region"].dropna().unique().tolist()) if "Region" in df else [])
-    category = st.multiselect("Category", sorted(df["Category"].dropna().unique().tolist()) if "Category" in df else [])
-    subcat_all = sorted(df["Sub-Category"].dropna().unique().tolist()) if "Sub-Category" in df else []
-    # Cascade
-    if category and "Category" in df and "Sub-Category" in df:
-        subcat_all = sorted(df[df["Category"].isin(category)]["Sub-Category"].dropna().unique().tolist())
-    subcat = st.multiselect("Sub-Category", subcat_all)
+    st.header("Filter Halaman")
+    cat_all = sorted(fdf["Category"].dropna().unique().tolist()) if "Category" in fdf else []
+    cat_pick = st.multiselect("Category", cat_all, default=cat_all)
 
-    date_range = None
-    if "Order Date" in df.columns:
-        min_d = df["Order Date"].min()
-        max_d = df["Order Date"].max()
-        date_range = st.date_input("Order Date Range", (min_d, max_d))
+    if cat_pick and "Category" in fdf and "Sub-Category" in fdf:
+        subcat_all = sorted(fdf[fdf["Category"].isin(cat_pick)]["Sub-Category"].dropna().unique().tolist())
+    elif "Sub-Category" in fdf:
+        subcat_all = sorted(fdf["Sub-Category"].dropna().unique().tolist())
+    else:
+        subcat_all = []
 
-# Apply filters
-mask = pd.Series([True]*len(df))
-if region and "Region" in df: mask &= df["Region"].isin(region)
-if category and "Category" in df: mask &= df["Category"].isin(category)
-if subcat and "Sub-Category" in df: mask &= df["Sub-Category"].isin(subcat)
-if date_range and "Order Date" in df.columns:
-    start, end = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
-    mask &= df["Order Date"].between(start, end)
+    subcat_pick = st.multiselect("Sub-Category", subcat_all, default=subcat_all)
 
-fdf = df[mask].copy()
+    reset = st.button("Reset Filter Halaman")
 
-# KPIs
+if reset:
+    st.rerun()
+
+mask = pd.Series(True, index=fdf.index)
+if cat_pick and "Category" in fdf:
+    mask &= fdf["Category"].isin(cat_pick)
+if subcat_pick and "Sub-Category" in fdf:
+    mask &= fdf["Sub-Category"].isin(subcat_pick)
+fdf = fdf[mask].copy()
+
+# KPI
 kpi = kpi_summary(fdf)
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Total Sales", f"${kpi['total_sales']:,.2f}")
-c2.metric("Total Profit", f"${kpi['total_profit']:,.2f}")
-c3.metric("Unique Orders", f"{kpi['n_orders']:,}")
-c4.metric("Profit Ratio", f"{kpi['profit_ratio']:.2f}%" if kpi['profit_ratio'] is not None else "—")
+with c1: kpi_card("Total Sales", f"${kpi['total_sales']:,.2f}", bg="#E8F1FF", fg="#0F3D91")
+with c2: kpi_card("Total Profit", f"${kpi['total_profit']:,.2f}", bg="#E8FFF2", fg="#0C6B3E")
+with c3: kpi_card("Order Unik", f"{kpi['n_orders']:,}", bg="#F1F1F1", fg="#333333")
+with c4: kpi_card("Profit Ratio", f"{kpi['profit_ratio']:.2f}%" if kpi['profit_ratio'] is not None else "-", bg="#FFF4E5", fg="#8A4B08")
 
-# Charts
-fig1 = bar_sales_profit_by_category(fdf)
-fig2 = top_subcategory_by_sales(fdf, top_n=10)
-fig3 = monthly_trend(fdf)
-fig4 = scatter_sales_profit(fdf)
+st.divider()
 
-for fig in [fig1, fig2, fig3, fig4]:
-    if fig is not None:
-        st.plotly_chart(fig, use_container_width=True)
+# Layout dua kolom padat
+left, right = st.columns(2)
+
+with left:
+    fig1 = bar_sales_profit_by_category(fdf)
+    if fig1 is not None:
+        st.subheader("Kinerja per Kategori")
+        st.plotly_chart(fig1, use_container_width=True)
+
+    fig2 = top_subcategory_by_sales(fdf, top_n=10)
+    if fig2 is not None:
+        st.subheader("Top 10 Sub-Category berdasarkan Sales")
+        st.plotly_chart(fig2, use_container_width=True)
+
+with right:
+    fig3 = monthly_trend(fdf)
+    if fig3 is not None:
+        st.subheader("Tren Bulanan Sales dan Profit")
+        st.plotly_chart(fig3, use_container_width=True)
+
+    fig4 = scatter_sales_profit(fdf)
+    if fig4 is not None:
+        st.subheader("Sebaran Sales vs Profit")
+        st.plotly_chart(fig4, use_container_width=True)
+
+# Tabel ringkas Top 10 dengan margin
+st.subheader("Ringkasan 10 Sub-Category Teratas (berdasarkan Sales)")
+if {"Sub-Category", "Sales"}.issubset(fdf.columns):
+    if "Order ID" in fdf:
+        orders_agg = ("Order ID", "nunique")
+    else:
+        orders_agg = ("Sales", "count")
+
+    tab = (
+        fdf.groupby("Sub-Category", as_index=False)
+           .agg(Sales=("Sales","sum"),
+                Profit=("Profit","sum"),
+                Orders=orders_agg)
+           .sort_values("Sales", ascending=False)
+           .head(10)
+    )
+    tab["Margin%"] = (tab["Profit"] / tab["Sales"]).replace([float("inf"), -float("inf")], 0.0).fillna(0.0) * 100
+
+    st.dataframe(tab[["Sub-Category", "Sales", "Profit", "Margin%", "Orders"]],
+                 use_container_width=True, height=360)
+
+    st.download_button("Unduh ringkasan (CSV)",
+                       data=tab.to_csv(index=False).encode("utf-8"),
+                       file_name="top10_subcategory.csv", mime="text/csv")
+else:
+    st.info("Kolom Sub-Category atau Sales tidak tersedia.")

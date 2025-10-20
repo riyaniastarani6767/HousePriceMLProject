@@ -1,5 +1,5 @@
 from pathlib import Path
-# --- add project root to sys.path ---
+
 import os, sys
 ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # parent of /notebooks
 if ROOT_DIR not in sys.path:
